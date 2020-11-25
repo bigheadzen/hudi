@@ -128,6 +128,7 @@ public class UpsertPartitioner<T extends HoodieRecordPayload<T>> extends Partiti
 
   private void assignInserts(WorkloadProfile profile, JavaSparkContext jsc) {
     // for new inserts, compute buckets depending on how many records we have for each partition
+    final long MAX_FILE_SIZE = config.getParquetMaxFileSize();
     Set<String> partitionPaths = profile.getPartitionPaths();
     long averageRecordSize =
         averageBytesPerRecord(table.getMetaClient().getActiveTimeline().getCommitTimeline().filterCompletedInstants(),
@@ -152,7 +153,7 @@ public class UpsertPartitioner<T extends HoodieRecordPayload<T>> extends Partiti
 
         // first try packing this into one of the smallFiles
         for (SmallFile smallFile : smallFiles) {
-          long recordsToAppend = Math.min((config.getParquetMaxFileSize() - smallFile.sizeBytes) / averageRecordSize,
+          long recordsToAppend = Math.min((MAX_FILE_SIZE - smallFile.sizeBytes) / averageRecordSize,
               totalUnassignedInserts);
           if (recordsToAppend > 0 && totalUnassignedInserts > 0) {
             // create a new bucket or re-use an existing bucket
@@ -174,7 +175,7 @@ public class UpsertPartitioner<T extends HoodieRecordPayload<T>> extends Partiti
         if (totalUnassignedInserts > 0) {
           long insertRecordsPerBucket = config.getCopyOnWriteInsertSplitSize();
           if (config.shouldAutoTuneInsertSplits()) {
-            insertRecordsPerBucket = config.getParquetMaxFileSize() / averageRecordSize;
+            insertRecordsPerBucket = MAX_FILE_SIZE / averageRecordSize;
           }
 
           int insertBuckets = (int) Math.ceil((1.0 * totalUnassignedInserts) / insertRecordsPerBucket);

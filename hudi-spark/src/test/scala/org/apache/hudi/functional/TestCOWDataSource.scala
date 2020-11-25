@@ -70,6 +70,25 @@ class TestCOWDataSource extends HoodieClientTestBase {
 
     assertTrue(HoodieDataSourceHelpers.hasNewCommits(fs, basePath, "000"))
   }
+  @Test def testBasicCOW() {
+    val RECORD_COUNT = 100 * 1024
+    val TABLE_PATH = basePath
+    // Insert Operation
+    val records1 = recordsToStrings(dataGen.generateInserts("000", RECORD_COUNT)).toList
+    val inputDF1 = spark.read.json(spark.sparkContext.parallelize(records1, 2))
+    val path = basePath
+    println("PATH: " + TABLE_PATH)
+    inputDF1.write.format("org.apache.hudi")
+      .options(commonOpts)
+      .option(DataSourceWriteOptions.OPERATION_OPT_KEY, DataSourceWriteOptions.INSERT_OPERATION_OPT_VAL)
+      .mode(SaveMode.Overwrite)
+      .save(TABLE_PATH)
+
+    while (true) {
+      println("Finished.")
+      Thread.sleep(10 * 1000)
+    };
+  }
 
   @Test def testCopyOnWriteStorage() {
     // Insert Operation
